@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  web:
+    # Use image: yourdockerhub/emdevops:latest if you're pulling from Hub
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: emdevops_web
+    ports:
+      - "3000:3000"
+    environment:
+      # These variables can be passed from the host or defined here
+      - DATABASE_URL=postgresql://johndoe:randompassword@db:5432/mydb?schema=public
+      - REDIS_URL=redis://redis:6379
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+
+  db:
+    image: postgres:14-alpine
+    container_name: emdevops_db
+    environment:
+      POSTGRES_USER: johndoe
+      POSTGRES_PASSWORD: randompassword
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U johndoe -d mydb" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:alpine
+    container_name: emdevops_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: always
+
+volumes:
+  pgdata:
+  redisdata:
