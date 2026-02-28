@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QuestionType {
+  DSA
+  FLASHCARD
+  YAML
+  QUIZ
+  DEBUG
+  CODE_REVIEW
+  SYSTEM_DESIGN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  domain      String   // "embedded" or "devops"
+  icon        String   @default("📦")
+  order       Int      @default(0)
+  topics      Topic[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id])
+  order       Int      @default(0)
+  questions   Question[]
+  progress    UserProgress[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  type          QuestionType
+  title         String
+  description   String       @db.Text
+  difficulty    Difficulty
+  companyTags   String[]     // ["Bosch", "Continental", etc.]
+  topicId       String
+  topic         Topic        @relation(fields: [topicId], references: [id])
+  testCases     Json?        // { input, expected, hidden }
+  starterCode   String?      @db.Text
+  solution      String?      @db.Text
+  hints         String[]
+  tags          String[]     // ["pointers", "bit-manipulation", etc.]
+  spacedRep     SpacedRepetition[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model UserProgress {
+  id           String   @id @default(cuid())
+  topicId      String
+  topic        Topic    @relation(fields: [topicId], references: [id])
+  masteryPct   Float    @default(0)
+  timeSpentSec Int      @default(0)
+  questionsAttempted Int @default(0)
+  questionsCorrect   Int @default(0)
+  lastStudied  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([topicId])
+}
+
+model SpacedRepetition {
+  id                  String   @id @default(cuid())
+  questionId          String
+  question            Question @relation(fields: [questionId], references: [id])
+  nextReviewDate      DateTime @default(now())
+  memoryStrengthScore Float    @default(1.0)
+  interval            Int      @default(1) // days
+  boxLevel            Int      @default(0) // Leitner box 0-4
+  basePerformance     Float    @default(0.5)
+  decayConstant       Float    @default(0.1)
+  lastReviewed        DateTime?
+  timesReviewed       Int      @default(0)
+  timesCorrect        Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([questionId])
+}
+
+model WeakArea {
+  id          String   @id @default(cuid())
+  tag         String   @unique
+  failureCount Int     @default(0)
+  lastFailed  DateTime?
+  confidence  Float    @default(0.5) // 0-1
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model StudySession {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  durationSec Int      @default(0)
+  moduleSlug  String?
+  topicSlug   String?
+  activity    String   // "dsa", "flashcard", "lab", "simulator", "quiz"
+  score       Float?
+  createdAt   DateTime @default(now())
+}
+
+model GeneratedCompany {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  logo            String
+  focus           String[]
+  dsaDifficulty   String
+  embeddedDepth   String
+  safetyEmphasis  String
+  devopsStack     String[]
+  interviewTips   String[]
+  interviewRounds Json
+  overview        String   @db.Text
+  products        String[]
+  createdAt       DateTime @default(now())
+}
